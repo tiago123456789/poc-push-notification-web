@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web push notification</title>
+</head>
+
+<body>
+    <script src="https://www.gstatic.com/firebasejs/8.4.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.16.1/firebase-messaging.js"></script>
+    <script src="./config.js"></script>
+    <script>
+        const app = firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        const registerPushNotificationToken = (token) => {
+            return fetch(URL_API, {
+                method: "POST",
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token })
+            })
+        }
+
+        const periodicallyReRegisterPushNotificationToken = () => {
+            setInterval(async () => {
+                const token = messaging.getToken()
+                registerPushNotificationToken(token);
+            }, (15 * 60 * 1000))
+        }
+
+        messaging
+            .requestPermission()
+            .then(function () {
+                return messaging.getToken();
+            })
+            .then(function (token) {
+                registerPushNotificationToken(token).then(() => {
+                    periodicallyReRegisterPushNotificationToken();
+                });
+            })
+            .catch(function (err) {
+                console.log(err)
+            });
+
+        let enableForegroundNotification = true;
+        messaging.onMessage(function (payload) {
+            if (enableForegroundNotification) {
+                let notification = payload.notification;
+                navigator.serviceWorker
+                    .getRegistrations()
+                    .then((registration) => {
+                        registration[0].showNotification(notification.title, {
+                            ...payload.notification
+                        });
+                    });
+            }
+        });
+    </script>
+</body>
+
+</html>
